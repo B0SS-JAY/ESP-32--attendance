@@ -1,4 +1,3 @@
-#include <Arduino.h>
 #include <Adafruit_Fingerprint.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
@@ -31,10 +30,8 @@ User users[] = {
 uint8_t totalUsers = sizeof(users) / sizeof(users[0]);
 
 Adafruit_Fingerprint finger = Adafruit_Fingerprint(&fpSerial);
-
 // Functions
 int getFingerprintID();
-void displayUser(uint8_t id);
 void displayUser(uint8_t id);
 
 // ----------------------
