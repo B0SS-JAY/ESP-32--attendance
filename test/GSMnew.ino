@@ -2,7 +2,7 @@
 SoftwareSerial sim(1, 0); // RX, TX
 int _timeout;
 String _buffer;
-String number = "+639930870792";  // change to your number
+String number = "+69562352443";  // change to your number
 
 void setup() {
   Serial.begin(9600);
