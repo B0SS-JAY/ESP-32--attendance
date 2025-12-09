@@ -1,134 +1,121 @@
-#include <Adafruit_Fingerprint.h>
+#include <SoftwareSerial.h>
 #include <Wire.h>
-#include <LiquidCrystal_I2C.h>
-#include "RTClib.h"
+#include <Arduino.h>
 
-// ----------------------
-// HARDWARE SETUP
-// ----------------------
-HardwareSerial fpSerial(2);    // UART2 for fingerprint
-LiquidCrystal_I2C lcd(0x27, 16, 2);
-RTC_DS3231 rtc;
-
-// ----------------------
-// USER DATABASE
-// ----------------------
-struct User {
-  uint8_t id;
-  String name;
-  String grade;
-};
-
-User users[] = {
-  {1, "Jella Rosales", "Grade 11"},
-  {2, "Mica Gunsat",   "Grade 11"},
-  {3, "Pearl Abad",    "Grade 11"},
-  {4, "George Maralli","Grade 11"},
-  {5, "Kathleen Mira", "Grade 11"}
-};
-
-uint8_t totalUsers = sizeof(users) / sizeof(users[0]);
-
-Adafruit_Fingerprint finger = Adafruit_Fingerprint(&fpSerial);
 // Functions
-int getFingerprintID();
-void displayUser(uint8_t id);
+void SendMessage();
+void RecieveMessage();
+void callNumber();
+String _readSerial(unsigned long timeout);
+#define HARDWARE_SERIAL_TRUE 1
+#if HARDWARE_SERIAL_TRUE 
+HardwareSerial sim(2);
+#else
+SoftwareSerial sim(11, 10); // RX, TX
+#endif
+int _timeout;
+String _buffer;
+String number = "+639562352443";  // change to your number
 
-// ----------------------
-// SETUP
-// ----------------------
 void setup() {
   Serial.begin(9600);
-
-  // LCD
-  lcd.init();
-  lcd.backlight();
-  lcd.clear();
-  lcd.print("Initializing...");
-  
-  // RTC
-  Wire.begin(21, 22);
-  if (!rtc.begin()) {
-    lcd.clear();
-    lcd.print("RTC Error!");
-    while (1);
-  }
-
-  // If RTC lost power → set time automatically
-  if (rtc.lostPower()) {
-    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
-  }
-
-  // Fingerprint sensor
-  fpSerial.begin(57600, SERIAL_8N1, 16, 17);
-  finger.begin(57600);
-
-  if (finger.verifyPassword()) {
-    lcd.clear();
-    lcd.print("Sensor Ready");
-  } else {
-    lcd.clear();
-    lcd.print("Sensor Error!");
-    while (1);
-  }
-
+  _buffer.reserve(100);
+  Serial.println("System Started...");
+#if HARDWARE_SERIAL_TRUE 
+  //sim.begin(9600, SERIAL_8N1, 26, 27);
+  sim.begin(9600);
+#else
+  sim.begin(9600);
+#endif
   delay(1000);
-  lcd.clear();
+
+  Serial.println("Type s to send an SMS, r to receive an SMS, and c to make a call");
+  sim.println("AT");
+  delay(500);
+  sim.println("AT+CMGF=1");  // Text mode
+  delay(500);
+  sim.println("AT+CNMI=1,2,0,0,0");  // Auto show new SMS directly
+  delay(500);
 }
 
-// ----------------------
-// MAIN LOOP
-// ----------------------
 void loop() {
-  getFingerprintID();
-  delay(300);
-}
-
-// ----------------------
-// FINGERPRINT FUNCTIONS
-// ----------------------
-int getFingerprintID() {
-  int r = finger.getImage();
-  if (r != FINGERPRINT_OK) return -1;
-
-  r = finger.image2Tz();
-  if (r != FINGERPRINT_OK) return -1;
-
-  r = finger.fingerFastSearch();
-  if (r != FINGERPRINT_OK) {
-    lcd.clear();
-    lcd.print("No Match");
-    return -1;
-  }
-
-  uint8_t id = finger.fingerID;
-  displayUser(id);
-  return id;
-}
-
-// ----------------------
-// LCD DISPLAY FUNCTION
-// ----------------------
-void displayUser(uint8_t id) {
-  DateTime now = rtc.now();  // Get current time
-  char timeStr[10];
-  sprintf(timeStr, "%02d:%02d:%02d", now.hour(), now.minute(), now.second());
-
-  for (int i = 0; i < totalUsers; i++) {
-    if (users[i].id == id) {
-      lcd.clear();
-      lcd.print(users[i].name);  // Line 1
-
-      lcd.setCursor(0, 1);
-      lcd.print(users[i].grade); // Grade left
-      lcd.setCursor(10, 1);
-      lcd.print(timeStr);        // Time on right
-
-      return;
+  if (Serial.available() > 0) {
+    char cmd = Serial.read();
+    switch (cmd) {
+      case 's':
+        SendMessage();
+        break;
+      case 'r':
+        RecieveMessage();
+        break;
+      case 'c':
+        callNumber();
+        break;
     }
   }
 
-  lcd.clear();
-  lcd.print("Unknown ID:");
-  lcd.print(id);
+  if (sim.available()) {
+    Serial.write(sim.read());
+  }
+}
+
+void SendMessage() {
+  Serial.println("Sending Message...");
+  sim.println("AT+CMGF=1"); // text mode
+  delay(500);
+  sim.print("AT+CMGS=\"");
+  sim.print(number);
+  sim.println("\"");
+  delay(500);
+
+  String SMS = "Hello, how are you?";
+  sim.println(SMS);
+  delay(500);
+  sim.write(26);  // CTRL+Z to send
+  Serial.println("Waiting for modem response...");
+
+  String response = _readSerial(10000); // wait up to 10s for response
+
+  // Check if the response indicates success
+  if (response.indexOf("+CMGS:") != -1 && response.indexOf("OK") != -1) {
+    Serial.println("✅ Message sent successfully!");
+  } else if (response.indexOf("ERROR") != -1) {
+    Serial.println("❌ Failed to send message!");
+  } else {
+    Serial.println("⚠️ No clear response from module.");
+  }
+
+  Serial.println("Modem reply:");
+  Serial.println(response);
+}
+
+void RecieveMessage() {
+  Serial.println("SIM800L Read an SMS");
+  sim.println("AT+CMGF=1");
+  delay(200);
+  sim.println("AT+CNMI=1,2,0,0,0");
+  delay(200);
+  Serial.println("Ready to receive SMS...");
+}
+
+void callNumber() {
+  Serial.println("Calling...");
+  sim.print("ATD");
+  sim.print(number);
+  sim.println(";");
+  String response = _readSerial(5000);
+  Serial.println("Response:");
+  Serial.println(response);
+}
+
+String _readSerial(unsigned long timeout) {
+  unsigned long startTime = millis();
+  String buffer = "";
+  while (millis() - startTime < timeout) {
+    while (sim.available()) {
+      char c = sim.read();
+      buffer += c;
+    }
+  }
+  return buffer;
 }

@@ -1,5 +1,5 @@
 #include <SoftwareSerial.h>
-SoftwareSerial sim(1, 0); // RX, TX
+SoftwareSerial sim(11, 10); // RX, TX
 int _timeout;
 String _buffer;
 String number = "+639562352443";  // change to your number
@@ -50,7 +50,7 @@ void SendMessage() {
   sim.println("\"");
   delay(500);
 
-  String SMS = "Hello, how are you Julius?";
+  String SMS = "Hello, how are you?";
   sim.println(SMS);
   delay(500);
   sim.write(26);  // CTRL+Z to send
