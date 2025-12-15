@@ -1,5 +1,4 @@
-#include <SoftwareSerial.h>
-#include <Wire.h>
+#include <HardwareSerial.h>
 #include <Arduino.h>
 
 // Functions
@@ -7,34 +6,34 @@ void SendMessage();
 void RecieveMessage();
 void callNumber();
 String _readSerial(unsigned long timeout);
-#define HARDWARE_SERIAL_TRUE 1
-#if HARDWARE_SERIAL_TRUE 
-HardwareSerial sim(2);
-#else
-SoftwareSerial sim(11, 10); // RX, TX
-#endif
-int _timeout;
+
+// Use UART1 - MUST remap pins (default 9/10 are for flash)
+HardwareSerial sim(1);
+
+// Choose available GPIO pins for UART1 remapping
+#define RX_PIN 25  // GPIO25 as RX (connect to SIM800L TX)
+#define TX_PIN 26  // GPIO26 as TX (connect to SIM800L RX)
+
 String _buffer;
-String number = "+639562352443";  // change to your number
+String number = "+639562352443";
 
 void setup() {
   Serial.begin(9600);
   _buffer.reserve(100);
   Serial.println("System Started...");
-#if HARDWARE_SERIAL_TRUE 
-  //sim.begin(9600, SERIAL_8N1, 26, 27);
-  sim.begin(9600);
-#else
-  sim.begin(9600);
-#endif
+  
+  // Initialize UART1 with remapped pins: begin(baud, config, RX, TX)
+  sim.begin(9600, SERIAL_8N1, RX_PIN, TX_PIN);
   delay(1000);
-
+  
   Serial.println("Type s to send an SMS, r to receive an SMS, and c to make a call");
+  
+  // Initialize SIM800L
   sim.println("AT");
   delay(500);
-  sim.println("AT+CMGF=1");  // Text mode
+  sim.println("AT+CMGF=1");
   delay(500);
-  sim.println("AT+CNMI=1,2,0,0,0");  // Auto show new SMS directly
+  sim.println("AT+CNMI=1,2,0,0,0");
   delay(500);
 }
 
@@ -53,7 +52,7 @@ void loop() {
         break;
     }
   }
-
+  
   if (sim.available()) {
     Serial.write(sim.read());
   }
@@ -61,22 +60,20 @@ void loop() {
 
 void SendMessage() {
   Serial.println("Sending Message...");
-  sim.println("AT+CMGF=1"); // text mode
+  sim.println("AT+CMGF=1");
   delay(500);
   sim.print("AT+CMGS=\"");
   sim.print(number);
   sim.println("\"");
   delay(500);
-
   String SMS = "Hello, how are you?";
   sim.println(SMS);
   delay(500);
-  sim.write(26);  // CTRL+Z to send
+  sim.write(26);
+  
   Serial.println("Waiting for modem response...");
-
-  String response = _readSerial(10000); // wait up to 10s for response
-
-  // Check if the response indicates success
+  String response = _readSerial(10000);
+  
   if (response.indexOf("+CMGS:") != -1 && response.indexOf("OK") != -1) {
     Serial.println("✅ Message sent successfully!");
   } else if (response.indexOf("ERROR") != -1) {
@@ -84,7 +81,6 @@ void SendMessage() {
   } else {
     Serial.println("⚠️ No clear response from module.");
   }
-
   Serial.println("Modem reply:");
   Serial.println(response);
 }
