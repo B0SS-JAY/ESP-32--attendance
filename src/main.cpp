@@ -41,7 +41,7 @@ Adafruit_Fingerprint finger = Adafruit_Fingerprint(&fpSerial);
 // ----------------------
 // SMS CONTROL
 // ----------------------
-String phoneNumber = "+639562352443";
+String phoneNumber = "+639176215111";
 bool smsSent = false;
 unsigned long lastScanTime = 0;
 
