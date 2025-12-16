@@ -1,3 +1,5 @@
 # ESP32 - Attendance Monitoring System with Fingerprint, RTC, and GSM Module
 
-**Currently in _testing_**
+## Functions
+LCD to display status message \
+Sends an alert to a specific phone number \
