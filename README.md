@@ -2,4 +2,4 @@
 
 ## Functions
 LCD to display status message \
-Sends an alert to a specific phone number \
+Sends an alert to a specific phone number 
